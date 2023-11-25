@@ -213,6 +213,20 @@ def split_file(file):
     return docs
 
 
+@st.cache_data(show_spinner="Making quiz...")
+def run_quiz_chain(_docs, topic):
+    chain = {"context": questions_chain} | formatting_chain | output_parser
+    response = chain.invoke(_docs)
+    return response
+
+
+@st.cache_data("Searching...")
+def wiki_search(term):
+    retriver = WikipediaRetriever(top_k_results=3)
+    docs = retriver.get_relevant_documents(topic)
+    return docs
+
+
 st.title("QuizGPT")
 
 
@@ -236,9 +250,7 @@ with st.sidebar:
     else:
         topic = st.text_input("Search Wikipedia...")
         if topic:
-            retriver = WikipediaRetriever(top_k_results=3)
-            with st.status("Searching..."):
-                docs = retriver.get_relevant_documents(topic)
+            docs = wiki_search(topic)
 
 if not docs:
     st.markdown(
@@ -254,6 +266,5 @@ else:
     start = st.button("Generate Quiz")
 
     if start:
-        chain = {"context": questions_chain} | formatting_chain | output_parser
-        response = chain.invoke(docs)
+        response = run_quiz_chain(docs, topic if topic else file.name)
         st.write(response)
