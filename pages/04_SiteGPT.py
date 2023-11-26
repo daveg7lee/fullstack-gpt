@@ -1,8 +1,52 @@
 from langchain.document_loaders import SitemapLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.vectorstores.faiss import FAISS
+from langchain.embeddings import OpenAIEmbeddings
+from langchain.schema.runnable import RunnablePassthrough, RunnableLambda
+from langchain.chat_models import ChatOpenAI
+from langchain.prompts import ChatPromptTemplate
 import streamlit as st
 
-splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder()
+llm = ChatOpenAI(
+    temperature=0.1,
+)
+
+answers_prompt = ChatPromptTemplate.from_template(
+    """
+    Using ONLY the following context answer the user's question. If you can't just say you don't know, don't make anything up.
+                                                  
+    Then, give a score to the answer between 0 and 5.
+    If the answer answers the user question the score should be high, else it should be low.
+    Make sure to always include the answer's score even if it's 0.
+    Context: {context}
+                                                  
+    Examples:
+                                                  
+    Question: How far away is the moon?
+    Answer: The moon is 384,400 km away.
+    Score: 5
+                                                  
+    Question: How far away is the sun?
+    Answer: I don't know
+    Score: 0
+                                                  
+    Your turn!
+    Question: {question}
+"""
+)
+
+
+def get_answers(inputs):
+    docs = inputs["docs"]
+    question = inputs["question"]
+    answers_chain = answers_prompt | llm
+    answers = []
+    for doc in docs:
+        result = answers_chain.invoke(
+            {"question": question, "context": doc.page_content}
+        )
+        answers.append(result.content)
+    st.write(answers)
 
 
 def parse_page(soup):
@@ -35,7 +79,8 @@ def load_website(url):
     )
     loader.requests_per_second = 5
     docs = loader.load_and_split(text_splitter=splitter)
-    return docs
+    vector_store = FAISS.from_documents(docs, OpenAIEmbeddings())
+    return vector_store.as_retriever()
 
 
 st.set_page_config(
@@ -65,4 +110,10 @@ if url:
         with st.sidebar:
             st.error("Plz write down a sitemap URL.")
     else:
-        docs = load_website(url)
+        retriver = load_website(url)
+        chain = {
+            "docs": retriver,
+            "question": RunnablePassthrough(),
+        } | RunnableLambda(get_answers)
+
+        chain.invoke("What is the pricing of GPT-4 Turbo with vision")
