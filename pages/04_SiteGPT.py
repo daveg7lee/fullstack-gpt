@@ -167,4 +167,4 @@ if url:
             )
 
             result = chain.invoke(query)
-            st.write(result.content.replace("$", "\$"))
+            st.markdown(result.content.replace("$", "\$"))
