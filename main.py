@@ -28,7 +28,7 @@ app = FastAPI(
     description="Give ChefGPT the name of an ingredient and it will give you multiple recipes to use that ingredient on in return.",
     servers=[
         {
-            "url": "https://occupations-partition-governments-analyzed.trycloudflare.com",
+            "url": "https://shed-framing-disclaimer-livestock.trycloudflare.com",
         },
     ],
 )
@@ -51,35 +51,3 @@ class Document(BaseModel):
 def get_recipe(ingredient: str):
     docs = vector_store.similarity_search(ingredient)
     return docs
-
-
-user_token_db = {"ABCDEF": "nico"}
-
-
-@app.get(
-    "/authorize",
-    response_class=HTMLResponse,
-    include_in_schema=False,
-)
-def handle_authorize(client_id: str, redirect_uri: str, state: str):
-    return f"""
-    <html>
-        <head>
-            <title>Nicolacus Maximus Log In</title>
-        </head>
-        <body>
-            <h1>Log Into Nicolacus Maximus</h1>
-            <a href="{redirect_uri}?code=ABCDEF&state={state}">Authorize Nicolacus Maximus GPT</a>
-        </body>
-    </html>
-    """
-
-
-@app.post(
-    "/token",
-    include_in_schema=False,
-)
-def handle_token(code=Form(...)):
-    return {
-        "access_token": user_token_db[code],
-    }
